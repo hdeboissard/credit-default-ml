@@ -1,0 +1,31 @@
+# Data files (often large, sensitive, or generated)
+*.csv
+loan_default.csv
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output files
+*.png
+*.jpg
+*.pdf
