@@ -41,8 +41,8 @@ def brier_score(p_test, y_test):
     return np.mean((p_test - y_test) ** 2)
 
 
-def find_optimal_threshold(p_test, y_test, cost_fn_to_fp_ratio=10):
-    # making a precision and recall curve for different threshold values
+def find_optimal_threshold(p_train, y_train, p_test, y_test, cost_fn_to_fp_ratio=10):
+    # finding optimal threshold using training data, but generating ROC/PR curves using test data
     # assuming that most of the 'action' is around a threshold of 0.1:
 
     thresholds = [
@@ -105,21 +105,22 @@ def find_optimal_threshold(p_test, y_test, cost_fn_to_fp_ratio=10):
     recall_plot = []
     precision_plot = []
     for threshold in thresholds:
-        y_pred = (p_test >= threshold).astype(int)
+        y_pred = (p_train >= threshold).astype(int)
         # finding optimal threshold to minimise cost
-        _, fp, _, fn = find_tf_fp(y_pred, y_test)
+        _, fp, _, fn = find_tf_fp(y_pred, y_train)
         cost = fp + fn * cost_fn_to_fp_ratio
         if cost < best_cost:
             best_cost = cost
             best_t = threshold
-        # ROC
-        tp, fp, tn, fn = find_tf_fp(y_pred, y_test)
+        # ROC (calculated on test data)
+        y_pred_test = (p_test >= threshold).astype(int)
+        tp, fp, tn, fn = find_tf_fp(y_pred_test, y_test)
         fpr = fp / (fp + tn)
         tpr = tp / (tp + fn)
         fpr_plot.append(fpr)
         tpr_plot.append(tpr)
-        # precision recall
-        _, recall, precision, _ = find_stats(y_pred, y_test)
+        # precision recall (calculated on test data)
+        _, recall, precision, _ = find_stats(y_pred_test, y_test)
         recall_plot.append(recall)
         precision_plot.append(precision)
 
@@ -127,7 +128,7 @@ def find_optimal_threshold(p_test, y_test, cost_fn_to_fp_ratio=10):
     order = np.argsort(fpr_plot)
     fpr_sorted = np.array(fpr_plot)[order]
     tpr_sorted = np.array(tpr_plot)[order]
-    roc_auc = np.trapezoid(tpr_sorted, fpr_sorted)
+    roc_auc = np.trapz(tpr_sorted, fpr_sorted)
 
     return best_t, best_cost, roc_auc, thresholds, fpr_plot, tpr_plot, recall_plot, precision_plot
 
@@ -182,7 +183,7 @@ def plot_roc_and_pr_curves(thresholds, fpr_plot, tpr_plot, recall_plot, precisio
     plt.title("Precision–Recall Curve")
     plt.grid(True)
 
-def analyse_threshold_vs_cost_ratio(p_test, y_test, cost_ratios=None, thresholds=None):
+def analyse_threshold_vs_cost_ratio(p_train, y_train, cost_ratios=None, thresholds=None):
     # The cost of a false positive is rejecting a worthy lender - ie missing out on fees, and future customer value.
     # The cost of a false negative is lending to a furture defaulter - ie having to spend money retrieving any leftover capital, and not receiving the principal.
     # Naturally, the cost of FN is almost always larger than FP.
@@ -256,8 +257,8 @@ def analyse_threshold_vs_cost_ratio(p_test, y_test, cost_ratios=None, thresholds
     for ratio in cost_ratios:
         costs = []
         for threshold in thresholds:
-            y_pred = (p_test >= threshold).astype(int)
-            _, fp, _, fn = find_tf_fp(y_pred, y_test)
+            y_pred = (p_train >= threshold).astype(int)
+            _, fp, _, fn = find_tf_fp(y_pred, y_train)
             cost = fp + fn * ratio
             costs.append(cost)
         best_idx = np.argmin(costs)

@@ -12,13 +12,20 @@ x_train, x_test, y_train, y_test = load_and_preprocess_data('loan_default.csv')
 # training data and showing log loss plot
 beta, train_losses = descend(x_train, y_train)
 
-# trying out the test data
+# Get predictions on training data (for threshold tuning)
+z_train = x_train @ beta
+p_train = sigmoid(z_train)
+
+# Get predictions on test data (for evaluation)
 z_test = x_test @ beta
 p_test = sigmoid(z_test)
 # we now have probability values ( 0 --> 1 ) for each measurement in the x_test data
 
-# tranforming p_test into y_test ( an array of 0s or 1s )
-threshold = 0.0895 # optimal threshold which saves the most amount of money as predicted below
+# Find optimal threshold using training data, generate ROC/PR curves using test data
+best_t, best_cost, roc_auc, thresholds, fpr_plot, tpr_plot, recall_plot, precision_plot = find_optimal_threshold(p_train, y_train, p_test, y_test)
+threshold = best_t
+
+# tranforming p_test into y_test ( an array of 0s or 1s ) using threshold tuned on training data
 y_pred = (p_test >= threshold).astype(int)
 
 brier = brier_score(p_test, y_test)
@@ -35,9 +42,6 @@ print(f"Recall:    {recall:.2%}")
 print(f"F1:        {f1:.4f}")
 print(f"Brier:     {brier:.4%}")
 
-# Find optimal threshold and generate ROC/PR data
-best_t, best_cost, roc_auc, thresholds, fpr_plot, tpr_plot, recall_plot, precision_plot = find_optimal_threshold(p_test, y_test)
-
 print(f"ROC AUC: {roc_auc:.4f}")
 print(f"Optimal Cost: ${best_cost:.0f}")
 print(f"Optimal Threshold: {best_t:.4f}")
@@ -47,7 +51,7 @@ plot_roc_and_pr_curves(thresholds, fpr_plot, tpr_plot, recall_plot, precision_pl
 
 # Analyze threshold vs cost ratio
 print("\nCost Ratio Analysis")
-optimal_thresholds, cost_ratios = analyse_threshold_vs_cost_ratio(p_test, y_test)
+optimal_thresholds, cost_ratios = analyse_threshold_vs_cost_ratio(p_train, y_train)
 print("Cost Ratios:", cost_ratios)
 print("Optimal Thresholds:", optimal_thresholds)
 
